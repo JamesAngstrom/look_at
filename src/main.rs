@@ -66,8 +66,6 @@ impl<'a, 'b> SimpleState<'a, 'b> for Example {
 fn main() -> amethyst::Result<()> {
     amethyst::start_logger(Default::default());
 
-    let app_root = application_root_dir();
-
     let pipe = Pipeline::build().with_stage(
         Stage::with_backbuffer()
             .clear_target([0.0, 0.0, 0.0, 1.0], 1.0)
@@ -107,7 +105,7 @@ fn initialize_lights(world: &mut World) {
     let dir = Vector3::new(0.7, -1.0, 0.8).normalize();
 
     let light: Light = DirectionalLight {
-        color: Rgba(0.4, 0.4, 0.5, 1.0),
+        color: Rgba(1.0, 1.0, 0.5, 1.0),
         direction: [dir.x, dir.y, dir.z]
     }.into();
 
