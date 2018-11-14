@@ -10,7 +10,6 @@ use amethyst::{
                Camera, Projection, AmbientColor, SkyboxColor, DirectionalLight, Light,
                DrawSkybox, Stage, Pipeline, RenderBundle},
     core::timing::{Time},
-    utils::{application_root_dir},
 };
 
 use std::f32::consts::*;
@@ -20,6 +19,14 @@ pub struct Follow {
 }
 
 impl Component for Follow {
+    type Storage = DenseVecStorage<Self>;
+}
+
+pub struct Orbit {
+    pub entity: Entity
+}
+
+impl Component for Orbit {
     type Storage = DenseVecStorage<Self>;
 }
 
@@ -54,10 +61,40 @@ impl<'a, 'b> SimpleState<'a, 'b> for Example {
         let sphere = world
             .create_entity()
             .with(mesh)
-            .with(mat)
+            .with(mat.clone())
             .with(trans)
             .build();
 
+        let mesh = world.exec(|loader: AssetLoaderSystemData<Mesh>| {
+            loader.load_from_data(
+                Shape::Cube.generate::<Vec<PosNormTex>>(None),
+                (),
+            )
+        });
+
+        for i in 1 .. 10 {
+            let mat = {
+                let textures = &world.read_resource();
+                let loader = world.read_resource::<Loader>();
+                let mat_defaults = world.read_resource::<MaterialDefaults>();
+                let albedo = loader.load_from_data([1.0, 1.0 / i as f32, 1.0 / i as f32, 0.0].into(), (), textures);
+                Material {
+                    albedo,
+                    ..mat_defaults.0.clone()
+                }
+            };
+
+            let mut trans = Transform::default();
+            trans.set_scale(1.0, 1.0, 1.0);
+            trans.set_position(Vector3::new(5.0, 30.0, 5.0 + 5.0 * i as f32));
+            world
+                .create_entity()
+                .with(mesh.clone())
+                .with(mat.clone())
+                .with(trans)
+                .with(Orbit { entity: sphere })
+                .build();
+        }
         initialize_camera(world, sphere);
         initialize_lights(world);
     }
@@ -76,7 +113,8 @@ fn main() -> amethyst::Result<()> {
     let game_data = GameDataBuilder::default()
         .with_bundle(TransformBundle::new())?
         .with_bundle(RenderBundle::new(pipe, None))?
-        .with(FollowSystem::new(), "follow_system", &[]);
+        .with(FollowSystem::new(), "follow_system", &[])
+        .with(OrbitSystem::new(), "orbit_system", &[]);
     let mut game = Application::new("", Example, game_data)?;
     game.run();
     Ok(())
@@ -159,6 +197,45 @@ impl<'s> System<'s> for FollowSystem {
             transform.set_y(point.y + 15.0);
 
             transform.look_at(point, Vector3::new(0.0, 1.0, 0.0));
+        }
+    }
+}
+
+pub struct OrbitSystem {
+    target: Option<Entity>
+}
+
+impl OrbitSystem {
+    pub fn new() -> Self {
+        OrbitSystem { target: None }
+    }
+}
+
+impl<'s> System<'s> for OrbitSystem {
+    type SystemData = (
+        ReadStorage<'s, Orbit>,
+        WriteStorage<'s, Transform>,
+        Read<'s, Time>,
+    );
+
+    fn setup(&mut self, res: &mut Resources) {
+        Self::SystemData::setup(res);
+    }
+
+    fn run(&mut self, (orbiters, mut transforms, time): Self::SystemData) {
+        let point = match self.target {
+            None => None,
+            Some(target) => {
+                Some(*transforms.get(target).unwrap().translation())
+            }
+        };
+
+        for (orbit, mut transform) in (&orbiters, &mut transforms).join() {
+            self.target = Some(orbit.entity);
+            if let Some(point) = point {
+                transform.look_at(point, Vector3::new(0.0, 1.0, 0.0));
+                transform.move_left(20.0 * time.delta_seconds());
+            }
         }
     }
 }
