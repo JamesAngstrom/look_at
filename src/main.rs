@@ -86,7 +86,7 @@ impl<'a, 'b> SimpleState<'a, 'b> for Example {
 
             let mut trans = Transform::default();
             trans.set_scale(1.0, 1.0, 1.0);
-            trans.set_position(Vector3::new(5.0, 30.0, 5.0 + 5.0 * i as f32));
+            trans.set_position(Vector3::new(3.0, 20.0, 1.0 + 4.0 * i as f32));
             world
                 .create_entity()
                 .with(mesh.clone())
@@ -233,7 +233,7 @@ impl<'s> System<'s> for OrbitSystem {
         for (orbit, mut transform) in (&orbiters, &mut transforms).join() {
             self.target = Some(orbit.entity);
             if let Some(point) = point {
-                transform.look_at(point, Vector3::new(0.0, 1.0, 0.0));
+                transform.look_at(point, Vector3::new(1.0, 0.0, 0.0));
                 transform.move_left(20.0 * time.delta_seconds());
             }
         }
